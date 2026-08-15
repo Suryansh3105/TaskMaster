@@ -2,7 +2,7 @@ package scheduler
 
 import "time"
 
-type Taak struct {
+type Task struct {
 	ID          string
 	Command     string
 	ScheduledAt time.Time
