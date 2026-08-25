@@ -27,6 +27,9 @@ go.work.sum
 # env file
 .env
 
+# Generated gRPC / Protobuf code
+pkg/grpcapi/*.pb.go
+
 # Editor/IDE
 # .idea/
 # .vscode/
