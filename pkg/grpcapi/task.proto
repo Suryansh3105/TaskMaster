@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package grpcapi;
+
+option go_package = "github.com/Suryansh3105/taskmaster/pkg/grpcapi";
+
+service TaskService {
+  
+  rpc AssignTask(AssignTaskRequest) returns (AssignTaskResponse);
+
+  rpc ConfirmDone(ConfirmDoneRequest) returns (ConfirmDoneResponse);
+
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message AssignTaskRequest {
+  string task_id = 1;
+  string command = 2;
+}
+
+message AssignTaskResponse {
+  bool accepted = 1;
+}
+
+message ConfirmDoneRequest {
+  string task_id = 1;
+  bool success = 2;
+  string error_message = 3; // set only when success is false
+}
+
+message ConfirmDoneResponse {
+  bool acknowledged = 1;
+}
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  int32 running_tasks = 2;
+  int32 max_capacity = 3;
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+}
