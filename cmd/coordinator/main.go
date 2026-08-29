@@ -32,6 +32,7 @@ func main() {
 	defer pool.Close()
 
 	repo := coordinator.NewRepository(pool)
+	registry := coordinator.NewRegistry()
 	workerClient, err := coordinator.NewWorkerClient("localhost:9090")
 	if err != nil {
 		log.Fatalf("failed to connect to worker: %v", err)
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterTaskServiceServer(grpcServer, coordinator.NewServer(repo))
+	pb.RegisterTaskServiceServer(grpcServer, coordinator.NewServer(repo, registry))
 	reflection.Register(grpcServer)
 	go func() {
 		log.Println("coordinator gRPC server listening on :9091")

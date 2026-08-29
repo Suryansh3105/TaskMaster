@@ -7,14 +7,19 @@ import (
 	pb "github.com/Suryansh3105/taskmaster/pkg/grpcapi"
 )
 
-
 type Server struct {
 	pb.UnimplementedTaskServiceServer
-	repo *Repository
+	repo     *Repository
+	registry *Registry
 }
 
-func NewServer(repo *Repository) *Server {
-	return &Server{repo: repo}
+func NewServer(repo *Repository, registry *Registry) *Server {
+	return &Server{repo: repo, registry: registry}
+}
+
+func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	s.registry.RecordHeartbeat(req.WorkerId, req.RunningTasks, req.MaxCapacity)
+	return &pb.HeartbeatResponse{Acknowledged: true}, nil
 }
 
 func (s *Server) ConfirmDone(ctx context.Context, req *pb.ConfirmDoneRequest) (*pb.ConfirmDoneResponse, error) {
