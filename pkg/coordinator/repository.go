@@ -85,3 +85,14 @@ func (r *Repository) MarkStarted(ctx context.Context, taskID string) error {
 	}
 	return nil
 }
+
+func (r *Repository) MarkCompleted(ctx context.Context, taskID string) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET completed_at = NOW() WHERE id = $1 AND completed_at IS NULL`,
+		taskID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to mark completed: %w", err)
+	}
+	return tag.RowsAffected() == 1, nil
+}
