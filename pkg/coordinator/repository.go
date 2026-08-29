@@ -66,3 +66,22 @@ func (r *Repository) ClaimDueTasks(ctx context.Context, limit int) ([]ClaimedTas
 
 	return claimed, nil
 }
+
+func (r *Repository) MarkDispatchAttempted(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET dispatch_attempted_at = NOW() WHERE id = $1`, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to mark dispatch attempted: %w", err)
+	}
+	return nil
+}
+
+// MarkStarted is called only after AssignTask returns successfully.
+func (r *Repository) MarkStarted(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET started_at = NOW() WHERE id = $1`, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to mark started: %w", err)
+	}
+	return nil
+}

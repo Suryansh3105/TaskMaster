@@ -7,11 +7,12 @@ import (
 )
 
 type Coordinator struct {
-	repo *Repository
+	repo       *Repository
+	dispatcher *Dispatcher
 }
 
-func NewCoordinator(repo *Repository) *Coordinator {
-	return &Coordinator{repo: repo}
+func NewCoordinator(repo *Repository, dispatcher *Dispatcher) *Coordinator {
+	return &Coordinator{repo: repo, dispatcher: dispatcher}
 }
 
 func (c *Coordinator) Run(ctx context.Context, interval time.Duration) {
@@ -29,8 +30,8 @@ func (c *Coordinator) Run(ctx context.Context, interval time.Duration) {
 				log.Printf("coordinator: claim failed: %v", err)
 				continue
 			}
-			if len(claimed) > 0 {
-				log.Printf("coordinator: claimed %d task(s)", len(claimed))
+			for _, task := range claimed {
+				c.dispatcher.Dispatch(ctx, task)
 			}
 		}
 	}
