@@ -53,5 +53,7 @@ func main() {
 
 	log.Println("coordinator claim loop starting")
 	coord.Run(ctx, 2*time.Second)
+	reaper := coordinator.NewReaper(repo, registry)
+	go reaper.Run(ctx, 5*time.Second)
 
 }

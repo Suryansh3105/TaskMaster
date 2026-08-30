@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -23,14 +24,14 @@ func (r *Repository) ClaimDueTasks(ctx context.Context, limit int) ([]ClaimedTas
 	defer tx.Rollback(ctx) // no-op if committed
 
 	rows, err := tx.Query(ctx,
-    `SELECT id, command FROM tasks
+		`SELECT id, command FROM tasks
      WHERE scheduled_at <= NOW() AND picked_at IS NULL
      AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
      ORDER BY scheduled_at
      LIMIT $1
      FOR UPDATE SKIP LOCKED`,
-    limit,
-)
+		limit,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query due tasks: %w", err)
 	}
@@ -78,9 +79,10 @@ func (r *Repository) MarkDispatchAttempted(ctx context.Context, taskID string) e
 }
 
 // MarkStarted is called only after AssignTask returns successfully.
-func (r *Repository) MarkStarted(ctx context.Context, taskID string) error {
+func (r *Repository) MarkStarted(ctx context.Context, taskID, workerID string) error {
 	_, err := r.pool.Exec(ctx,
-		`UPDATE tasks SET started_at = NOW() WHERE id = $1`, taskID)
+		`UPDATE tasks SET started_at = NOW(), worker_id = $2 WHERE id = $1`,
+		taskID, workerID)
 	if err != nil {
 		return fmt.Errorf("failed to mark started: %w", err)
 	}
@@ -134,4 +136,98 @@ func (r *Repository) RecordFailureAndScheduleRetry(ctx context.Context, taskID s
 		return fmt.Errorf("failed to schedule retry for task %s: %w", taskID, err)
 	}
 	return nil
+}
+
+func (r *Repository) RenewClaim(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET claim_renewed_at = NOW() WHERE id = $1`, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to renew claim for task %s: %w", taskID, err)
+	}
+	return nil
+}
+
+func (r *Repository) FindStaleClaims(ctx context.Context, leaseTimeout time.Duration) ([]ClaimedTask, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, command FROM tasks
+		 WHERE picked_at IS NOT NULL
+		   AND completed_at IS NULL
+		   AND dead_letter_at IS NULL
+		   AND needs_review_at IS NULL
+		   AND claim_renewed_at < NOW() - $1 * INTERVAL '1 second'`,
+		leaseTimeout.Seconds(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query stale claims: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []ClaimedTask
+	for rows.Next() {
+		var t ClaimedTask
+		if err := rows.Scan(&t.ID, &t.Command); err != nil {
+			return nil, fmt.Errorf("failed to scan stale claim: %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, nil
+}
+
+func (r *Repository) WasDispatchAttempted(ctx context.Context, taskID string) (bool, error) {
+	var attempted *time.Time
+	err := r.pool.QueryRow(ctx,
+		`SELECT dispatch_attempted_at FROM tasks WHERE id = $1`, taskID,
+	).Scan(&attempted)
+	if err != nil {
+		return false, fmt.Errorf("failed to check dispatch_attempted_at: %w", err)
+	}
+	return attempted != nil, nil
+}
+
+func (r *Repository) ClearClaimForRetry(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET picked_at = NULL, started_at = NULL,
+		 dispatch_attempted_at = NULL, claim_renewed_at = NULL, worker_id = NULL
+		 WHERE id = $1`,
+		taskID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to clear claim for retry on task %s: %w", taskID, err)
+	}
+	return nil
+}
+
+func (r *Repository) MarkNeedsReview(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET needs_review_at = NOW() WHERE id = $1 AND needs_review_at IS NULL`,
+		taskID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to mark task %s needs_review: %w", taskID, err)
+	}
+	return nil
+}
+
+func (r *Repository) FindTasksInProgressForWorker(ctx context.Context, workerID string) ([]ClaimedTask, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, command FROM tasks
+		 WHERE started_at IS NOT NULL AND completed_at IS NULL
+		   AND dead_letter_at IS NULL AND needs_review_at IS NULL
+		   AND worker_id = $1`,
+		workerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query in-progress tasks for worker %s: %w", workerID, err)
+	}
+	defer rows.Close()
+
+	var tasks []ClaimedTask
+	for rows.Next() {
+		var t ClaimedTask
+		if err := rows.Scan(&t.ID, &t.Command); err != nil {
+			return nil, fmt.Errorf("failed to scan task: %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, nil
 }
