@@ -7,6 +7,7 @@ import (
 
 type WorkerInfo struct {
 	WorkerID     string
+	Address      string
 	RunningTasks int32
 	MaxCapacity  int32
 	LastSeen     time.Time
@@ -21,11 +22,12 @@ func NewRegistry() *Registry {
 	return &Registry{workers: make(map[string]WorkerInfo)}
 }
 
-func (r *Registry) RecordHeartbeat(workerID string, runningTasks, maxCapacity int32) {
+func (r *Registry) RecordHeartbeat(workerID, address string, runningTasks, maxCapacity int32) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.workers[workerID] = WorkerInfo{
 		WorkerID:     workerID,
+		Address:      address,
 		RunningTasks: runningTasks,
 		MaxCapacity:  maxCapacity,
 		LastSeen:     time.Now(),

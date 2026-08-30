@@ -12,13 +12,11 @@ import (
 func TestDispatch_SuccessfulFlow(t *testing.T) {
 	repo := setupCoordinatorTestRepo(t)
 
-	worker, err := NewWorkerClient("localhost:9090")
-	if err != nil {
-		t.Fatalf("failed to connect to stub worker: %v", err)
-	}
-	defer worker.Close()
+	registry := NewRegistry()
 
-	dispatcher := NewDispatcher(repo, worker)
+	registry.RecordHeartbeat("stub-1", "localhost:9090", 0, 5)
+
+	dispatcher := NewDispatcher(repo, registry)
 
 	connString, _ := common.GetDBConnectionString()
 	pool, _ := common.ConnectToDatabase(context.Background(), connString)

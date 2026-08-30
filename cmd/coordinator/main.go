@@ -33,11 +33,7 @@ func main() {
 
 	repo := coordinator.NewRepository(pool)
 	registry := coordinator.NewRegistry()
-	workerClient, err := coordinator.NewWorkerClient("localhost:9090")
-	if err != nil {
-		log.Fatalf("failed to connect to worker: %v", err)
-	}
-	dispatcher := coordinator.NewDispatcher(repo, workerClient)
+	dispatcher := coordinator.NewDispatcher(repo, registry)
 	coord := coordinator.NewCoordinator(repo, dispatcher)
 
 	lis, err := net.Listen("tcp", ":9091")

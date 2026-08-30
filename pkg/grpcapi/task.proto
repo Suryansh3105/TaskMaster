@@ -36,6 +36,7 @@ message HeartbeatRequest {
   string worker_id = 1;
   int32 running_tasks = 2;
   int32 max_capacity = 3;
+  string address = 4;
 }
 
 message HeartbeatResponse {

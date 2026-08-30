@@ -18,7 +18,7 @@ func NewServer(repo *Repository, registry *Registry) *Server {
 }
 
 func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
-	s.registry.RecordHeartbeat(req.WorkerId, req.RunningTasks, req.MaxCapacity)
+	s.registry.RecordHeartbeat(req.WorkerId, req.Address, req.RunningTasks, req.MaxCapacity)
 	return &pb.HeartbeatResponse{Acknowledged: true}, nil
 }
 
