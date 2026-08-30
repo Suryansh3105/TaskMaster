@@ -43,3 +43,17 @@ func (r *Registry) Snapshot() map[string]WorkerInfo {
 	}
 	return snap
 }
+
+func (r *Registry) StaleWorkers(timeout time.Duration) []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var stale []string
+	cutoff := time.Now().Add(-timeout)
+	for id, w := range r.workers {
+		if w.LastSeen.Before(cutoff) {
+			stale = append(stale, id)
+		}
+	}
+	return stale
+}

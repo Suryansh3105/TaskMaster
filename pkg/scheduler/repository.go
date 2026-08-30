@@ -33,12 +33,12 @@ func (r *Repository) GetTask(ctx context.Context, id string) (*Task, error) {
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, command, scheduled_at, picked_at, started_at, completed_at, failed_at,
 		        retry_count, max_retries, next_attempt_at, dead_letter_at, needs_review_at,
-		        dispatch_attempted_at, claim_renewed_at
+		        dispatch_attempted_at, claim_renewed_at, worker_id
 		 FROM tasks WHERE id = $1`,
 		id,
 	).Scan(&t.ID, &t.Command, &t.ScheduledAt, &t.PickedAt, &t.StartedAt, &t.CompletedAt, &t.FailedAt,
 		&t.RetryCount, &t.MaxRetries, &t.NextAttemptAt, &t.DeadLetterAt, &t.NeedsReviewAt,
-		&t.DispatchAttemptedAt, &t.ClaimRenewedAt)
+		&t.DispatchAttemptedAt, &t.ClaimRenewedAt, &t.WorkerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %w", err)
 	}

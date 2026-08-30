@@ -17,6 +17,7 @@ type Task struct {
 	NeedsReviewAt        *time.Time
 	DispatchAttemptedAt  *time.Time
 	ClaimRenewedAt       *time.Time
+	WorkerID             *string
 }
 
 type CommandRequest struct {

@@ -65,7 +65,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, task ClaimedTask) {
 		return
 	}
 
-	if err := d.repo.MarkStarted(ctx, task.ID); err != nil {
+	if err := d.repo.MarkStarted(ctx, task.ID, worker.WorkerID); err != nil {
 		log.Printf("dispatch: failed to mark started for task %s: %v", task.ID, err)
+	}
+	
+	if err := d.repo.RenewClaim(ctx, task.ID); err != nil {
+		log.Printf("dispatch: failed to renew claim for task %s: %v", task.ID, err)
 	}
 }
