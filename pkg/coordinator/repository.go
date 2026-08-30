@@ -23,13 +23,14 @@ func (r *Repository) ClaimDueTasks(ctx context.Context, limit int) ([]ClaimedTas
 	defer tx.Rollback(ctx) // no-op if committed
 
 	rows, err := tx.Query(ctx,
-		`SELECT id, command FROM tasks
-		 WHERE scheduled_at <= NOW() AND picked_at IS NULL
-		 ORDER BY scheduled_at
-		 LIMIT $1
-		 FOR UPDATE SKIP LOCKED`,
-		limit,
-	)
+    `SELECT id, command FROM tasks
+     WHERE scheduled_at <= NOW() AND picked_at IS NULL
+     AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
+     ORDER BY scheduled_at
+     LIMIT $1
+     FOR UPDATE SKIP LOCKED`,
+    limit,
+)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query due tasks: %w", err)
 	}
@@ -95,4 +96,42 @@ func (r *Repository) MarkCompleted(ctx context.Context, taskID string) (bool, er
 		return false, fmt.Errorf("failed to mark completed: %w", err)
 	}
 	return tag.RowsAffected() == 1, nil
+}
+
+func (r *Repository) RecordFailureAndScheduleRetry(ctx context.Context, taskID string) error {
+	var retryCount, maxRetries int
+	err := r.pool.QueryRow(ctx,
+		`SELECT retry_count, max_retries FROM tasks WHERE id = $1`, taskID,
+	).Scan(&retryCount, &maxRetries)
+	if err != nil {
+		return fmt.Errorf("failed to read retry state for task %s: %w", taskID, err)
+	}
+
+	newCount := retryCount + 1
+
+	if newCount >= maxRetries {
+		_, err = r.pool.Exec(ctx,
+			`UPDATE tasks SET retry_count = $1, dead_letter_at = NOW(), failed_at = NOW()
+			 WHERE id = $2`,
+			newCount, taskID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to dead-letter task %s: %w", taskID, err)
+		}
+		return nil
+	}
+
+	delay := NextAttemptDelay(newCount)
+	_, err = r.pool.Exec(ctx,
+		`UPDATE tasks
+		 SET retry_count = $1, failed_at = NOW(), picked_at = NULL,
+		     started_at = NULL, dispatch_attempted_at = NULL,
+		     next_attempt_at = NOW() + $2 * INTERVAL '1 second'
+		 WHERE id = $3`,
+		newCount, delay.Seconds(), taskID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to schedule retry for task %s: %w", taskID, err)
+	}
+	return nil
 }

@@ -25,6 +25,9 @@ func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.H
 func (s *Server) ConfirmDone(ctx context.Context, req *pb.ConfirmDoneRequest) (*pb.ConfirmDoneResponse, error) {
 	if !req.Success {
 		log.Printf("coordinator: task %s reported failure: %s", req.TaskId, req.ErrorMessage)
+		if err := s.repo.RecordFailureAndScheduleRetry(ctx, req.TaskId); err != nil {
+			log.Printf("coordinator: failed to schedule retry for task %s: %v", req.TaskId, err)
+		}
 		return &pb.ConfirmDoneResponse{Acknowledged: true}, nil
 	}
 

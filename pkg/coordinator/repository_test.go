@@ -73,3 +73,32 @@ func TestClaimDueTasks_NoDoubleClaim(t *testing.T) {
 		t.Errorf("expected %d tasks claimed across both calls, got %d", numTasks, total)
 	}
 }
+
+func TestRecordFailureAndScheduleRetry_DeadLettersAfterMax(t *testing.T) {
+	repo := setupCoordinatorTestRepo(t)
+
+	connString, _ := common.GetDBConnectionString()
+	pool, _ := common.ConnectToDatabase(context.Background(), connString)
+	defer pool.Close()
+	schedRepo := scheduler.NewRepository(pool)
+
+	taskID, err := schedRepo.InsertTask(context.Background(), "always fails", time.Now().Add(-1*time.Minute))
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	// Default max_retries is 3 — fail it 3 times, expect dead_letter on the 3rd.
+	for i := 0; i < 3; i++ {
+		if err := repo.RecordFailureAndScheduleRetry(context.Background(), taskID); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
+		}
+	}
+
+	task, err := schedRepo.GetTask(context.Background(), taskID)
+	if err != nil {
+		t.Fatalf("failed to get task: %v", err)
+	}
+	if task.DeadLetterAt == nil {
+		t.Error("expected task to be dead-lettered after 3 failures")
+	}
+}
