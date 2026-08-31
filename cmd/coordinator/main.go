@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/Suryansh3105/taskmaster/pkg/common"
@@ -56,4 +57,15 @@ func main() {
 	reaper := coordinator.NewReaper(repo, registry)
 	go reaper.Run(ctx, 5*time.Second)
 
+	handler := coordinator.NewHandler(repo)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /tasks/{id}/requeue", handler.HandleRequeue)
+
+	httpServer := &http.Server{Addr: ":8082", Handler: mux}
+	go func() {
+		log.Println("coordinator HTTP server listening on :8082")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("http server error: %v", err)
+		}
+	}()
 }

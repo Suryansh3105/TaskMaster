@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func cleanTasksTable(t *testing.T, pool *pgxpool.Pool) {
+func cleanTasksTableTemp(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE tasks")
@@ -27,7 +27,7 @@ func TestReaper_SafeAutoRetry_WhenDispatchNeverAttempted(t *testing.T) {
 	pool, _ := common.ConnectToDatabase(context.Background(), connString)
 	defer pool.Close()
 
-	cleanTasksTable(t, pool)
+	cleanTasksTableTemp(t, pool)
 
 	schedRepo := scheduler.NewRepository(pool)
 
@@ -59,7 +59,7 @@ func TestReaper_NeedsReview_WhenDispatchWasInFlight(t *testing.T) {
 	pool, _ := common.ConnectToDatabase(context.Background(), connString)
 	defer pool.Close()
 
-	cleanTasksTable(t, pool)
+	cleanTasksTableTemp(t, pool)
 
 	schedRepo := scheduler.NewRepository(pool)
 
@@ -87,7 +87,7 @@ func TestReaper_StaleWorker_OnlyAffectsItsOwnTasks(t *testing.T) {
 	pool, _ := common.ConnectToDatabase(context.Background(), connString)
 	defer pool.Close()
 
-	cleanTasksTable(t, pool)
+	cleanTasksTableTemp(t, pool)
 
 	schedRepo := scheduler.NewRepository(pool)
 
