@@ -231,3 +231,28 @@ func (r *Repository) FindTasksInProgressForWorker(ctx context.Context, workerID 
 	}
 	return tasks, nil
 }
+
+func (r *Repository) IsNeedsReview(ctx context.Context, taskID string) (bool, error) {
+	var needsReviewAt *time.Time
+	err := r.pool.QueryRow(ctx,
+		`SELECT needs_review_at FROM tasks WHERE id = $1`, taskID,
+	).Scan(&needsReviewAt)
+	if err != nil {
+		return false, fmt.Errorf("failed to check needs_review state: %w", err)
+	}
+	return needsReviewAt != nil, nil
+}
+
+func (r *Repository) RequeueTask(ctx context.Context, taskID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET picked_at = NULL, started_at = NULL,
+		 dispatch_attempted_at = NULL, claim_renewed_at = NULL,
+		 worker_id = NULL, needs_review_at = NULL
+		 WHERE id = $1`,
+		taskID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to requeue task %s: %w", taskID, err)
+	}
+	return nil
+}
