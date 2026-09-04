@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 )
+
+const renewInterval = 5 * time.Second
 
 type Dispatcher struct {
 	repo     *Repository
@@ -68,8 +71,28 @@ func (d *Dispatcher) Dispatch(ctx context.Context, task ClaimedTask) {
 	if err := d.repo.MarkStarted(ctx, task.ID, worker.WorkerID); err != nil {
 		log.Printf("dispatch: failed to mark started for task %s: %v", task.ID, err)
 	}
-	
-	if err := d.repo.RenewClaim(ctx, task.ID); err != nil {
-		log.Printf("dispatch: failed to renew claim for task %s: %v", task.ID, err)
+
+	go d.renewLeaseLoop(ctx, task.ID, renewInterval)
+}
+
+func (d *Dispatcher) renewLeaseLoop(ctx context.Context, taskID string, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			renewed, err := d.repo.RenewClaimConditional(ctx, taskID)
+			if err != nil {
+				log.Printf("renew: failed for task %s: %v", taskID, err)
+				continue
+			}
+			if !renewed {
+				log.Printf("renew: task %s no longer renewable, stopping", taskID)
+				return
+			}
+		}
 	}
 }

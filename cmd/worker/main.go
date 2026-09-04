@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"time"
 
 	pb "github.com/Suryansh3105/taskmaster/pkg/grpcapi"
 	"google.golang.org/grpc"
@@ -14,8 +15,18 @@ type stubServer struct {
 	pb.TaskServiceServer
 }
 
+// func (s *stubServer) AssignTask(ctx context.Context, req *pb.AssignTaskRequest) (*pb.AssignTaskResponse, error) {
+// 	log.Printf("stub worker: received task %s (command: %q)", req.TaskId, req.Command)
+// 	return &pb.AssignTaskResponse{Accepted: true}, nil
+// }
+
+// simulate a slow task
+
 func (s *stubServer) AssignTask(ctx context.Context, req *pb.AssignTaskRequest) (*pb.AssignTaskResponse, error) {
 	log.Printf("stub worker: received task %s (command: %q)", req.TaskId, req.Command)
+	go func() {
+		time.Sleep(45 * time.Second)
+	}()
 	return &pb.AssignTaskResponse{Accepted: true}, nil
 }
 

@@ -91,7 +91,8 @@ func (r *Repository) MarkStarted(ctx context.Context, taskID, workerID string) e
 
 func (r *Repository) MarkCompleted(ctx context.Context, taskID string) (bool, error) {
 	tag, err := r.pool.Exec(ctx,
-		`UPDATE tasks SET completed_at = NOW() WHERE id = $1 AND completed_at IS NULL`,
+		`UPDATE tasks SET completed_at = NOW()
+		 WHERE id = $1 AND completed_at IS NULL AND started_at IS NOT NULL`,
 		taskID,
 	)
 	if err != nil {
@@ -138,13 +139,16 @@ func (r *Repository) RecordFailureAndScheduleRetry(ctx context.Context, taskID s
 	return nil
 }
 
-func (r *Repository) RenewClaim(ctx context.Context, taskID string) error {
-	_, err := r.pool.Exec(ctx,
-		`UPDATE tasks SET claim_renewed_at = NOW() WHERE id = $1`, taskID)
+func (r *Repository) RenewClaimConditional(ctx context.Context, taskID string) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE tasks SET claim_renewed_at = NOW()
+		 WHERE id = $1 AND needs_review_at IS NULL AND completed_at IS NULL`,
+		taskID,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to renew claim for task %s: %w", taskID, err)
+		return false, fmt.Errorf("failed to renew claim for task %s: %w", taskID, err)
 	}
-	return nil
+	return tag.RowsAffected() == 1, nil
 }
 
 func (r *Repository) FindStaleClaims(ctx context.Context, leaseTimeout time.Duration) ([]ClaimedTask, error) {
