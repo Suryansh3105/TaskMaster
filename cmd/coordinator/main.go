@@ -5,6 +5,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Suryansh3105/taskmaster/pkg/common"
@@ -25,7 +28,8 @@ func main() {
 		log.Fatalf("config error: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	pool, err := common.ConnectToDatabase(ctx, connString)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
@@ -53,8 +57,9 @@ func main() {
 	}()
 
 	log.Println("coordinator claim loop starting")
-	coord.Run(ctx, 2*time.Second)
+	go coord.Run(ctx, 2*time.Second)
 	reaper := coordinator.NewReaper(repo, registry)
+	log.Println("starting reaper")
 	go reaper.Run(ctx, 5*time.Second)
 
 	handler := coordinator.NewHandler(repo)
@@ -68,4 +73,8 @@ func main() {
 			log.Fatalf("http server error: %v", err)
 		}
 	}()
+
+	<-ctx.Done()
+
+	log.Println("shutdown signal received")
 }
