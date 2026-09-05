@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"log"
+	"sync"
 	"sync/atomic"
 
 	pb "github.com/Suryansh3105/taskmaster/pkg/grpcapi"
@@ -12,10 +13,11 @@ import (
 
 type Server struct {
 	pb.UnimplementedTaskServiceServer
-	config          Config
-	runningTasks    int32
-	coordinatorConn *grpc.ClientConn
+	config            Config
+	runningTasks      int32
+	coordinatorConn   *grpc.ClientConn
 	coordinatorClient pb.TaskServiceClient
+	inFlight          sync.WaitGroup // tracks executions still running
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -34,13 +36,19 @@ func (s *Server) RunningTasks() int32 {
 	return atomic.LoadInt32(&s.runningTasks)
 }
 
+func (s *Server) WaitForInFlight() {
+	s.inFlight.Wait()
+}
+
 func (s *Server) AssignTask(ctx context.Context, req *pb.AssignTaskRequest) (*pb.AssignTaskResponse, error) {
 	log.Printf("worker %s: received task %s (command: %q)", s.config.WorkerID, req.TaskId, req.Command)
 
 	atomic.AddInt32(&s.runningTasks, 1)
+	s.inFlight.Add(1)
 
 	go func() {
 		defer atomic.AddInt32(&s.runningTasks, -1)
+		defer s.inFlight.Done()
 
 		result := Execute(context.Background(), req.Command)
 		if result.Success {
