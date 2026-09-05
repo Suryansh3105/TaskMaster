@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Suryansh3105/taskmaster/pkg/grpcapi"
 	"github.com/Suryansh3105/taskmaster/pkg/worker"
@@ -26,12 +30,26 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	server := worker.NewServer(config)
 	grpcServer := grpc.NewServer()
-	grpcapi.RegisterTaskServiceServer(grpcServer, worker.NewServer(config))
+	grpcapi.RegisterTaskServiceServer(grpcServer, server)
 	reflection.Register(grpcServer)
 
-	log.Printf("worker %s listening on %s", config.WorkerID, config.ListenAddress)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("server error: %v", err)
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go worker.SendHeartbeats(ctx, config, server)
+
+	go func() {
+		log.Printf("worker %s listening on %s", config.WorkerID, config.ListenAddress)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	log.Println("worker shutting down")
+	cancel() // stops the heartbeat loop
+	grpcServer.GracefulStop()
 }
