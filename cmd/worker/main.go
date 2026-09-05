@@ -30,7 +30,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	server := worker.NewServer(config)
+	server, err := worker.NewServer(config)
+	if err != nil {
+		log.Fatalf("failed to create worker server: %v", err)
+	}
 	grpcServer := grpc.NewServer()
 	grpcapi.RegisterTaskServiceServer(grpcServer, server)
 	reflection.Register(grpcServer)
