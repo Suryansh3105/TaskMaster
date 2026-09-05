@@ -17,7 +17,8 @@ type Server struct {
 	runningTasks      int32
 	coordinatorConn   *grpc.ClientConn
 	coordinatorClient pb.TaskServiceClient
-	inFlight          sync.WaitGroup // tracks executions still running
+	inFlight          sync.WaitGroup
+	slots             chan struct{} // buffered channel used as a capacity semaphore
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -29,6 +30,7 @@ func NewServer(config Config) (*Server, error) {
 		config:            config,
 		coordinatorConn:   conn,
 		coordinatorClient: pb.NewTaskServiceClient(conn),
+		slots:             make(chan struct{}, config.MaxCapacity),
 	}, nil
 }
 
@@ -41,14 +43,25 @@ func (s *Server) WaitForInFlight() {
 }
 
 func (s *Server) AssignTask(ctx context.Context, req *pb.AssignTaskRequest) (*pb.AssignTaskResponse, error) {
+	select {
+	case s.slots <- struct{}{}:
+
+	default:
+		log.Printf("worker %s: rejecting task %s — at capacity", s.config.WorkerID, req.TaskId)
+		return &pb.AssignTaskResponse{Accepted: false}, nil
+	}
+
 	log.Printf("worker %s: received task %s (command: %q)", s.config.WorkerID, req.TaskId, req.Command)
 
 	atomic.AddInt32(&s.runningTasks, 1)
 	s.inFlight.Add(1)
 
 	go func() {
-		defer atomic.AddInt32(&s.runningTasks, -1)
-		defer s.inFlight.Done()
+		defer func() {
+			<-s.slots
+			atomic.AddInt32(&s.runningTasks, -1)
+			s.inFlight.Done()
+		}()
 
 		result := Execute(context.Background(), req.Command)
 		if result.Success {
