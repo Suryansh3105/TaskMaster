@@ -64,7 +64,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, task ClaimedTask) {
 		return
 	}
 	if !resp.Accepted {
-		log.Printf("dispatch: worker %s rejected task %s", worker.WorkerID, task.ID)
+		log.Printf("dispatch: worker %s rejected task %s (at capacity) — clearing claim for immediate retry", worker.WorkerID, task.ID)
+		if err := d.repo.ClearClaimForRetry(ctx, task.ID); err != nil {
+			log.Printf("dispatch: failed to clear claim for task %s: %v", task.ID, err)
+		}
 		return
 	}
 
