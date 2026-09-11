@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,5 +60,34 @@ func TestHandleRequeue_NotFlaggedForReview(t *testing.T) {
 
 	if w.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d", w.Code)
+	}
+}
+
+func TestHandleListTasks_ReturnsTasks(t *testing.T) {
+	pool := testPool(t)
+	cleanTasksTable(t, pool)
+
+	repo := NewRepository(pool)
+	handler := NewHandler(repo)
+	schedRepo := scheduler.NewRepository(pool)
+
+	schedRepo.InsertTask(context.Background(), "task one", time.Now().Add(1*time.Hour))
+	schedRepo.InsertTask(context.Background(), "task two", time.Now().Add(2*time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
+	w := httptest.NewRecorder()
+
+	handler.HandleListTasks(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var tasks []scheduler.Task
+	if err := json.NewDecoder(w.Body).Decode(&tasks); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks, got %d", len(tasks))
 	}
 }

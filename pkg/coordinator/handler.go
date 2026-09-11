@@ -45,3 +45,14 @@ func (h *Handler) HandleRequeue(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "requeued"})
 }
+
+func (h *Handler) HandleListTasks(w http.ResponseWriter, r *http.Request) {
+	tasks, err := h.repo.ListTasks(r.Context(), 100)
+	if err != nil {
+		http.Error(w, "failed to list tasks", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tasks)
+}
