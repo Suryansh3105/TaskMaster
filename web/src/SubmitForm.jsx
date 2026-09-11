@@ -7,6 +7,7 @@ function SubmitForm() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,6 +32,8 @@ function SubmitForm() {
 
       setCommand('');
       setScheduledAt('');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError('Failed to reach the scheduler — is it running?');
     } finally {
@@ -60,6 +63,7 @@ function SubmitForm() {
         </button>
       </form>
       {error && <p className="error-text">{error}</p>}
+      {success && <p className="success-text">Task scheduled.</p>}
     </div>
   );
 }
