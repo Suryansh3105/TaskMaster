@@ -67,7 +67,10 @@ func main() {
 	mux.HandleFunc("GET /tasks", handler.HandleListTasks)
 	mux.HandleFunc("POST /tasks/{id}/requeue", handler.HandleRequeue)
 
-	httpServer := &http.Server{Addr: ":8082", Handler: mux}
+	httpServer := &http.Server{
+		Addr:    ":8082",
+		Handler: common.WithCORS(mux),
+	}
 	go func() {
 		log.Println("coordinator HTTP server listening on :8082")
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

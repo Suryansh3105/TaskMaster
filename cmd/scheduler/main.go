@@ -36,9 +36,9 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: mux,
+		Handler: common.WithCORS(mux),
 	}
-
+	
 	go func() {
 		log.Println("scheduler listening on :8080")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
