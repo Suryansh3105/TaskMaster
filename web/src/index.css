@@ -4,3 +4,63 @@ body {
   background: #f8f9fa;
   color: #1a1a1a;
 }
+
+.card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  font-weight: 500;
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.submit-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.submit-form input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.submit-form input[type="text"] {
+  flex: 2;
+  min-width: 200px;
+}
+
+.submit-form input[type="datetime-local"] {
+  flex: 1;
+  min-width: 180px;
+}
+
+.submit-form button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0 16px;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submit-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
