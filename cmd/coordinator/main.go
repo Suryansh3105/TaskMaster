@@ -64,6 +64,7 @@ func main() {
 
 	handler := coordinator.NewHandler(repo)
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /tasks", handler.HandleListTasks)
 	mux.HandleFunc("POST /tasks/{id}/requeue", handler.HandleRequeue)
 
 	httpServer := &http.Server{Addr: ":8082", Handler: mux}

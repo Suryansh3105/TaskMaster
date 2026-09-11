@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Suryansh3105/taskmaster/pkg/scheduler"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -259,4 +260,33 @@ func (r *Repository) RequeueTask(ctx context.Context, taskID string) error {
 		return fmt.Errorf("failed to requeue task %s: %w", taskID, err)
 	}
 	return nil
+}
+
+func (r *Repository) ListTasks(ctx context.Context, limit int) ([]scheduler.Task, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, command, scheduled_at, picked_at, started_at, completed_at, failed_at,
+		        retry_count, max_retries, next_attempt_at, dead_letter_at, needs_review_at,
+		        dispatch_attempted_at, claim_renewed_at, worker_id
+		 FROM tasks
+		 ORDER BY scheduled_at DESC
+		 LIMIT $1`,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []scheduler.Task
+	for rows.Next() {
+		var t scheduler.Task
+		if err := rows.Scan(&t.ID, &t.Command, &t.ScheduledAt, &t.PickedAt, &t.StartedAt,
+			&t.CompletedAt, &t.FailedAt, &t.RetryCount, &t.MaxRetries, &t.NextAttemptAt,
+			&t.DeadLetterAt, &t.NeedsReviewAt, &t.DispatchAttemptedAt, &t.ClaimRenewedAt,
+			&t.WorkerID); err != nil {
+			return nil, fmt.Errorf("failed to scan task: %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, nil
 }
