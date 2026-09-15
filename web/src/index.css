@@ -70,3 +70,48 @@ body {
   font-size: 13px;
   margin: 8px 0 0;
 }
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.task-table colgroup col:nth-child(1) { width: 40%; }
+.task-table colgroup col:nth-child(2) { width: 18%; }
+.task-table colgroup col:nth-child(3) { width: 20%; }
+.task-table colgroup col:nth-child(4) { width: 12%; }
+.task-table colgroup col:nth-child(5) { width: 10%; }
+
+.task-table th {
+  text-align: left;
+  padding: 8px 4px;
+  color: #64748b;
+  font-weight: 400;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.task-table td {
+  padding: 10px 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.command-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+.requeue-btn {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}

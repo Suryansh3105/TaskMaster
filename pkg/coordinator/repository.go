@@ -263,6 +263,7 @@ func (r *Repository) RequeueTask(ctx context.Context, taskID string) error {
 }
 
 func (r *Repository) ListTasks(ctx context.Context, limit int) ([]scheduler.Task, error) {
+	tasks := []scheduler.Task{}
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, command, scheduled_at, picked_at, started_at, completed_at, failed_at,
 		        retry_count, max_retries, next_attempt_at, dead_letter_at, needs_review_at,
@@ -277,7 +278,6 @@ func (r *Repository) ListTasks(ctx context.Context, limit int) ([]scheduler.Task
 	}
 	defer rows.Close()
 
-	var tasks []scheduler.Task
 	for rows.Next() {
 		var t scheduler.Task
 		if err := rows.Scan(&t.ID, &t.Command, &t.ScheduledAt, &t.PickedAt, &t.StartedAt,
